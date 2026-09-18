@@ -10,9 +10,9 @@
 
 ## 📱 Live Demo
 
-- **Web**: [auramakeover.in](https://auramakeover.in) (Coming Week 2)
+- **Web**: [auramakeover.in](https://auramakeover.ai) (Coming Week 2)
 - **Mobile**: iOS + Android (Coming Week 6)
-- **Admin Dashboard**: [admin.auramakeover.in](https://admin.auramakeover.in) (Coming Week 5)
+- **Admin Dashboard**: [admin.auramakeover.in](https://admin.auramakeover.ai) (Coming Week 5)
 
 ---
 
