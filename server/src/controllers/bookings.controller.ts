@@ -26,7 +26,7 @@ export const getBookings = async (req: Request, res: Response) => {
 
 export const getBookingById = async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id, 10);
+    const bookingId = parseInt(req.params.id as string, 10);
     const booking = await BookingService.getBookingById(bookingId);
 
     if (!booking) {
@@ -41,7 +41,7 @@ export const getBookingById = async (req: Request, res: Response) => {
 
 export const updateBooking = async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id, 10);
+    const bookingId = parseInt(req.params.id as string, 10);
     const updatedBooking = await BookingService.updateBooking(bookingId, req.body);
 
     if (!updatedBooking) {
@@ -59,7 +59,7 @@ export const updateBooking = async (req: Request, res: Response) => {
 
 export const cancelBooking = async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id, 10);
+    const bookingId = parseInt(req.params.id as string, 10);
     const cancelledBooking = await BookingService.cancelBooking(bookingId);
 
     if (!cancelledBooking) {

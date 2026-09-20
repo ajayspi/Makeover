@@ -1,5 +1,6 @@
 import express from 'express';
 import bookingsRouter from './routes/bookings';
+import designsRouter from './routes/designs';
 
 const app = express();
 app.use(express.json());
@@ -9,6 +10,7 @@ app.get('/api/auth/health', (req, res) => {
 });
 
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/designs', designsRouter);
 
 export default app;
 
