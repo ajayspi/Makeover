@@ -1,0 +1,285 @@
+// use prisma-8
+
+// ----------------------------------------------------------------------------
+// Phase 0: Core Users & Auth
+// ----------------------------------------------------------------------------
+model User {
+  id             String                     @id @default(uuid())
+  phone          String                     @unique
+  email          String?                    @unique
+  name           String?
+  role           String                     @default("CUSTOMER") // CUSTOMER, ADMIN, B2B_PARTNER
+  createdAt      TimestamptzString          @default(now())
+  updatedAt      temporal.updatedAtString()
+
+  // Relations
+  addresses      Address[]
+  bookings       Booking[]
+  payments       Payment[]
+  subscriptions  UserSubscription[]
+  referralCode   String?                    @unique
+  referralsMade  Referral[]                 @relation("Referrer")
+  referralsUsed  Referral[]                 @relation("Referred")
+  reviews        Review[]
+  supportTickets SupportTicket[]
+  b2bProfile     B2BPartner?
+}
+
+model Address {
+  id        String                     @id @default(uuid())
+  userId    String
+  user      User                       @relation(fields:[userId], references:[id], onDelete: Cascade)
+  type      String                     @default("HOME") // HOME, OFFICE, OTHER
+  street    String
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean                    @default(false)
+  createdAt TimestamptzString          @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Relations
+  bookings  Booking[]
+}
+
+model Session {
+  id        String                     @id @default(uuid())
+  userId    String
+  token     String                     @unique
+  expiresAt TimestamptzString
+  createdAt TimestamptzString          @default(now())
+  updatedAt temporal.updatedAtString()
+}
+
+// ----------------------------------------------------------------------------
+// Phase 1: Catalog & Pricing
+// ----------------------------------------------------------------------------
+model DesignTier {
+  id          String                     @id @default(uuid())
+  name        String                     @unique // Starter, Smart, Designer, Luxury
+  minPrice    Float
+  maxPrice    Float
+  margin      Float
+  description String?
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  // Relations
+  designs     Design[]
+}
+
+model Design {
+  id          String                     @id @default(uuid())
+  tierId      String
+  tier        DesignTier                 @relation(fields:[tierId], references:[id])
+  name        String
+  description String
+  basePrice   Float
+  imageUrl    String
+  arModelUrl  String?
+  isActive    Boolean                    @default(true)
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  // Relations
+  bookings    Booking[]
+  reviews     Review[]
+}
+
+model AddOn {
+  id           String                     @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  margin       Float
+  imageUrl     String?
+  isActive     Boolean                    @default(true)
+  createdAt    TimestamptzString          @default(now())
+  updatedAt    temporal.updatedAtString()
+
+  // Relations
+  bookingItems BookingAddOn[]
+}
+
+// ----------------------------------------------------------------------------
+// Phase 1: Bookings & Operations
+// ----------------------------------------------------------------------------
+model Booking {
+  id          String                     @id @default(uuid())
+  userId      String
+  user        User                       @relation(fields:[userId], references:[id])
+  designId    String
+  design      Design                     @relation(fields:[designId], references:[id])
+  addressId   String
+  address     Address                    @relation(fields:[addressId], references:[id])
+  status      String                     @default("PENDING") // PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED
+  totalAmount Float
+  installDate TimestamptzString?
+  notes       String?
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  // Relations
+  addOns      BookingAddOn[]
+  payments    Payment[]
+  assignments BookingAssignment[]
+  reviews     Review[]
+}
+
+model BookingAddOn {
+  id        String                     @id @default(uuid())
+  bookingId String
+  booking   Booking                    @relation(fields:[bookingId], references:[id], onDelete: Cascade)
+  addOnId   String
+  addOn     AddOn                      @relation(fields:[addOnId], references:[id], onDelete: Cascade)
+  quantity  Int                        @default(1)
+  priceAt   Float // Capture price at the time of booking
+  createdAt TimestamptzString          @default(now())
+  updatedAt temporal.updatedAtString()
+
+  @@unique([bookingId, addOnId])
+}
+
+model Technician {
+  id          String                     @id @default(uuid())
+  userId      String?                    @unique // If technician can login
+  name        String
+  phone       String                     @unique
+  skills      String[]
+  isActive    Boolean                    @default(true)
+  rating      Float                      @default(0)
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  // Relations
+  assignments BookingAssignment[]
+}
+
+model BookingAssignment {
+  id           String             @id @default(uuid())
+  bookingId    String
+  booking      Booking            @relation(fields:[bookingId], references:[id], onDelete: Cascade)
+  technicianId String
+  technician   Technician         @relation(fields:[technicianId], references:[id])
+  status       String             @default("ASSIGNED") // ASSIGNED, EN_ROUTE, ON_SITE, COMPLETED
+  assignedAt   TimestamptzString  @default(now())
+  completedAt  TimestamptzString?
+
+  @@unique([bookingId, technicianId])
+}
+
+// ----------------------------------------------------------------------------
+// Phase 1: Payments & Financials
+// ----------------------------------------------------------------------------
+model Payment {
+  id                String                     @id @default(uuid())
+  bookingId         String?
+  booking           Booking?                   @relation(fields:[bookingId], references:[id])
+  userId            String
+  user              User                       @relation(fields:[userId], references:[id])
+  razorpayOrderId   String                     @unique
+  razorpayPaymentId String?                    @unique
+  amount            Float
+  currency          String                     @default("INR")
+  status            String                     @default("CREATED") // CREATED, AUTHORIZED, CAPTURED, FAILED, REFUNDED
+  escrowStatus      String? // HELD, RELEASED
+  createdAt         TimestamptzString          @default(now())
+  updatedAt         temporal.updatedAtString()
+}
+
+// ----------------------------------------------------------------------------
+// Phase 2: Growth & Subscriptions
+// ----------------------------------------------------------------------------
+model SubscriptionPlan {
+  id           String                     @id @default(uuid())
+  name         String                     @unique // Smart Concierge, Premium, Seasonal Refresh
+  description  String
+  price        Float
+  billingCycle String                     @default("MONTHLY") // MONTHLY, QUARTERLY, YEARLY
+  isActive     Boolean                    @default(true)
+  createdAt    TimestamptzString          @default(now())
+  updatedAt    temporal.updatedAtString()
+
+  // Relations
+  subscribers  UserSubscription[]
+}
+
+model UserSubscription {
+  id        String                     @id @default(uuid())
+  userId    String
+  user      User                       @relation(fields:[userId], references:[id])
+  planId    String
+  plan      SubscriptionPlan           @relation(fields:[planId], references:[id])
+  status    String                     @default("ACTIVE") // ACTIVE, CANCELED, PAST_DUE
+  startDate TimestamptzString
+  endDate   TimestamptzString?
+  createdAt TimestamptzString          @default(now())
+  updatedAt temporal.updatedAtString()
+}
+
+model Referral {
+  id             String                     @id @default(uuid())
+  referrerId     String
+  referrer       User                       @relation("Referrer", fields:[referrerId], references:[id])
+  referredUserId String?                    @unique
+  referredUser   User?                      @relation("Referred", fields:[referredUserId], references:[id])
+  codeUsed       String
+  status         String                     @default("PENDING") // PENDING, COMPLETED, REWARDED
+  rewardAmount   Float?
+  createdAt      TimestamptzString          @default(now())
+  updatedAt      temporal.updatedAtString()
+}
+
+model Review {
+  id         String                     @id @default(uuid())
+  userId     String
+  user       User                       @relation(fields:[userId], references:[id])
+  bookingId  String?
+  booking    Booking?                   @relation(fields:[bookingId], references:[id])
+  designId   String?
+  design     Design?                    @relation(fields:[designId], references:[id])
+  rating     Int
+  comment    String?
+  images     String[] // URLs of after photos
+  isApproved Boolean                    @default(false)
+  createdAt  TimestamptzString          @default(now())
+  updatedAt  temporal.updatedAtString()
+}
+
+// ----------------------------------------------------------------------------
+// Phase 3: B2B & Support
+// ----------------------------------------------------------------------------
+model B2BPartner {
+  id             String                     @id @default(uuid())
+  userId         String                     @unique
+  user           User                       @relation(fields:[userId], references:[id])
+  companyName    String
+  partnerType    String // DESIGNER, BROKER, CORPORATE
+  commissionRate Float                      @default(0.0)
+  gstNumber      String?
+  isVerified     Boolean                    @default(false)
+  createdAt      TimestamptzString          @default(now())
+  updatedAt      temporal.updatedAtString()
+}
+
+model SupportTicket {
+  id          String                     @id @default(uuid())
+  userId      String
+  user        User                       @relation(fields:[userId], references:[id])
+  subject     String
+  description String
+  status      String                     @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  priority    String                     @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+}
+
+model Notification {
+  id        String                     @id @default(uuid())
+  userId    String
+  type      String // SMS, WHATSAPP, EMAIL, PUSH
+  content   String
+  status    String                     @default("SENT") // SENT, DELIVERED, FAILED
+  createdAt TimestamptzString          @default(now())
+  updatedAt temporal.updatedAtString()
+}
